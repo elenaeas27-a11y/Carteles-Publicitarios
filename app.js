@@ -283,14 +283,14 @@ async function init() {
         console.error("Error inicializando IndexedDB", e);
     }
 
-    // Theme setup
+    // Theme setup - Default to light mode
     const savedTheme = localStorage.getItem('theme');
-    if (savedTheme === 'light') {
-        document.documentElement.classList.remove('dark');
-        btnTheme.textContent = "☀️";
-    } else {
+    if (savedTheme === 'dark') {
         document.documentElement.classList.add('dark');
         btnTheme.textContent = "🌙";
+    } else {
+        document.documentElement.classList.remove('dark');
+        btnTheme.textContent = "☀️";
     }
 
     btnTheme.addEventListener('click', () => {
