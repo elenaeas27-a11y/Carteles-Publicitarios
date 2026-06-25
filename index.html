@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="es" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Poster Generator PRO</title>
+    <link rel="stylesheet" href="styles.css">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div id="toast-container" class="toast-container"></div>
+
+    <header class="navbar glass">
+        <div class="logo-container">
+            <div class="logo-icon">
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+            </div>
+            <h1 class="logo">Creador de carteles publicitarios</h1>
+        </div>
+        <div class="nav-actions">
+            <button id="btn-theme" class="btn-icon" title="Cambiar Tema">🌙</button>
+            <button id="btn-restore" class="btn-ghost">Restaurar</button>
+            <button id="btn-copy" class="btn-outline">Copiar JSON</button>
+        </div>
+    </header>
+
+    <main class="container">
+        <!-- LEFT PANEL (CONTROLS) -->
+        <div class="panel left-panel glass">
+            
+            <div class="form-content">
+                <!-- API KEY CONFIG -->
+                <div class="api-key-section">
+                    <label for="input-api-key" class="api-key-label">API Key de Pollinations</label>
+                    <div class="api-key-wrapper-panel">
+                        <svg class="key-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"></path></svg>
+                        <input type="password" id="input-api-key" placeholder="Pega tu API Key aquí..." autocomplete="off">
+                    </div>
+                </div>
+
+                <!-- PLANTILLAS -->
+                <details class="form-section" open>
+                    <summary>
+                        <h2>Plantillas</h2>
+                        <svg class="chevron" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                    </summary>
+                    <div id="template-grid" class="template-grid">
+                        <!-- Thumbs inyectados por JS -->
+                    </div>
+                </details>
+
+                <details class="form-section">
+                    <summary>
+                        <h2>Ajustes Principales</h2>
+                        <svg class="chevron" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                    </summary>
+                    <div class="form-grid">
+                        <div class="input-group full-width">
+                            <label for="select-ratio">Relación de Aspecto</label>
+                            <select id="select-ratio">
+                                <option value="square" selected>Cuadrado (1:1)</option>
+                                <option value="vertical">Vertical (9:16)</option>
+                                <option value="horizontal">Horizontal (16:9)</option>
+                                <option value="4:3">Clásico (4:3)</option>
+                                <option value="3:4">Retrato (3:4)</option>
+                            </select>
+                        </div>
+                        <div class="input-group">
+                            <label for="select-model">Modelo AI</label>
+                            <select id="select-model"></select>
+                        </div>
+                        <div class="input-group">
+                            <label for="select-style">Estilo Visual</label>
+                            <select id="select-style" data-field="style"></select>
+                        </div>
+                        <div class="input-group full-width">
+                            <label for="input-seed">Semilla (Seed) - <span style="font-weight:normal; font-size:11px; opacity:0.8;">Déjalo vacío para aleatorio</span></label>
+                            <div style="display:flex; gap:8px;">
+                                <input type="number" id="input-seed" placeholder="Ej: 42" style="flex:1;">
+                                <button id="btn-random-seed" class="btn-outline" style="padding: 8px 12px;">🎲 Aleatorio</button>
+                            </div>
+                        </div>
+                    </div>
+                </details>
+
+                <details class="form-section" open>
+                    <summary>
+                        <h2>Información de Marca</h2>
+                        <svg class="chevron" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                    </summary>
+                    <div class="form-grid">
+                        <div class="input-group">
+                            <label for="input-brand">Marca</label>
+                            <input type="text" id="input-brand" data-field="brand">
+                        </div>
+                        <div class="input-group">
+                            <label for="input-product">Producto / Servicio</label>
+                            <input type="text" id="input-product" data-field="product">
+                        </div>
+                        <div class="input-group full-width">
+                            <label for="input-campaign">Tipo de campaña</label>
+                            <input type="text" id="input-campaign" data-field="campaign_type">
+                        </div>
+                        <div class="input-group full-width">
+                            <label for="input-audience">Público objetivo</label>
+                            <input type="text" id="input-audience" data-field="target_audience">
+                        </div>
+                    </div>
+                </details>
+
+                <details class="form-section">
+                    <summary>
+                        <h2>Textos del Cartel</h2>
+                        <svg class="chevron" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                    </summary>
+                    <div class="form-grid">
+                        <div class="input-group full-width">
+                            <label for="select-text-mode">Motor de Texto</label>
+                            <select id="select-text-mode">
+                                <option value="digital" selected>Texto Digital Superpuesto (Nítido y sin errores)</option>
+                                <option value="ai">Dibujado por la IA (Estilo integrado, propenso a errores)</option>
+                            </select>
+                        </div>
+                        <div class="input-group full-width">
+                            <label for="input-headline">Titular principal</label>
+                            <input type="text" id="input-headline" data-field="headline">
+                        </div>
+                        <div class="input-group full-width">
+                            <label for="input-subtitle">Subtítulo</label>
+                            <input type="text" id="input-subtitle" data-field="subtitle">
+                        </div>
+                        <div class="input-group full-width">
+                            <label for="input-cta">Llamada a la acción (CTA)</label>
+                            <input type="text" id="input-cta" data-field="call_to_action">
+                        </div>
+                    </div>
+                </details>
+
+                <details class="form-section">
+                    <summary>
+                        <h2>Escena y Elementos</h2>
+                        <svg class="chevron" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                    </summary>
+                    <div class="form-grid">
+                        <div class="input-group full-width">
+                            <label for="input-setting">Escenario</label>
+                            <input type="text" id="input-setting" data-field="setting">
+                        </div>
+                        <div class="input-group">
+                            <label for="input-subject">Sujeto principal</label>
+                            <input type="text" id="input-subject" data-field="subject">
+                        </div>
+                        <div class="input-group">
+                            <label for="input-animal">Elemento secundario / animal</label>
+                            <input type="text" id="input-animal" data-field="animal">
+                        </div>
+                        <div class="input-group full-width">
+                            <label for="input-interaction">Interacción</label>
+                            <input type="text" id="input-interaction" data-field="interaction">
+                        </div>
+                    </div>
+                </details>
+
+                <details class="form-section">
+                    <summary>
+                        <h2>Estética</h2>
+                        <svg class="chevron" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                    </summary>
+                    <div class="form-grid">
+                        <div class="input-group">
+                            <label for="input-lighting">Iluminación</label>
+                            <input type="text" id="input-lighting" data-field="lighting">
+                        </div>
+                        <div class="input-group">
+                            <label for="input-mood">Ambiente (Mood)</label>
+                            <input type="text" id="input-mood" data-field="mood">
+                        </div>
+                        <div class="input-group full-width">
+                            <label for="input-palette">Paleta de colores</label>
+                            <input type="text" id="input-palette" data-field="color_palette">
+                        </div>
+                        <div class="input-group full-width">
+                            <label for="input-composition">Composición</label>
+                            <input type="text" id="input-composition" data-field="composition">
+                        </div>
+                        <div class="input-group full-width">
+                            <label for="input-typography">Tipografía</label>
+                            <input type="text" id="input-typography" data-field="typography">
+                        </div>
+                        <div class="input-group full-width">
+                            <label for="input-references">Referencias visuales</label>
+                            <textarea id="input-references" data-field="visual_references" rows="2"></textarea>
+                        </div>
+                    </div>
+                </details>
+
+                <details class="form-section json-section">
+                    <summary>
+                        <div class="json-header">
+                            <h2>Prompt JSON</h2>
+                            <span id="json-error" class="error-badge hidden">JSON Inválido</span>
+                        </div>
+                        <svg class="chevron" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                    </summary>
+                    <textarea id="json-editor" rows="12" spellcheck="false"></textarea>
+                </details>
+            </div>
+
+            <!-- STICKY FOOTER ACTION -->
+            <div class="generate-wrapper glass-footer">
+                <button id="btn-generate" class="btn-generate btn-glow">
+                    <span class="btn-text">Generar Cartel</span>
+                    <div class="loader hidden"></div>
+                </button>
+            </div>
+
+        </div>
+
+        <!-- RIGHT PANEL (PREVIEW) -->
+        <div class="panel right-panel">
+            <div class="preview-container glass">
+                
+                <!-- ESTADO VACÍO -->
+                <div id="state-empty" class="state-view">
+                    <div class="icon-glow">
+                        <svg class="icon-placeholder" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+                    </div>
+                    <p class="title">El lienzo está vacío</p>
+                    <p class="subtitle">Configura las opciones en el panel izquierdo y descubre la magia.</p>
+                </div>
+
+                <!-- ESTADO CARGANDO -->
+                <div id="state-loading" class="state-view hidden">
+                    <div class="hexagon-spinner">
+                        <div class="hex-brick h1"></div>
+                        <div class="hex-brick h2"></div>
+                        <div class="hex-brick h3"></div>
+                    </div>
+                    <p id="loading-text" class="title pulse glow-text">Creando diseño premium...</p>
+                </div>
+
+                <!-- ESTADO RESULTADO -->
+                <img id="result-image" class="result-image hidden" alt="Cartel Generado">
+            </div>
+
+            <div class="actions-right">
+                <button id="btn-download" class="btn-download btn-glow-secondary" disabled>
+                    <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+                    Descargar en Alta Resolución
+                </button>
+            </div>
+
+            <!-- HISTORY -->
+            <div id="history-container" class="history-container hidden glass">
+                <h3 class="history-title">
+                    <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                    Creaciones Recientes
+                </h3>
+                <div id="history-list" class="history-list"></div>
+            </div>
+
+        </div>
+    </main>
+
+    <script src="app.js"></script>
+</body>
+</html>
