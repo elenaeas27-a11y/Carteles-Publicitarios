@@ -27,7 +27,8 @@ const STYLES = [
 ];
 
 const MODELS = [
-    { id: "flux", name: "Flux (Default)" },
+    { id: "gpt-image", name: "DALL-E 3 (OpenAI) - Default" },
+    { id: "flux", name: "Flux (Fireworks AI)" },
     { id: "nanobanana", name: "Nanobanana" },
     { id: "seedream", name: "Seedream" },
     { id: "ideogram-v4-turbo", name: "Ideogram V4" },
@@ -264,7 +265,7 @@ function loadStateLocally() {
             if (state.ratio) selectRatio.value = state.ratio;
             if (state.textMode && selectTextMode) selectTextMode.value = state.textMode;
             if (state.seed !== undefined && inputSeed) inputSeed.value = state.seed;
-            currentModel = selectModel.value || "flux";
+            currentModel = selectModel.value || "gpt-image";
         } catch (e) {
             console.error("Error cargando autoguardado", e);
         }
@@ -454,10 +455,29 @@ function clearJsonError() {
     btnGenerate.disabled = false;
 }
 
-function constructPrompt(data, textMode = 'digital') {
+function constructPrompt(data, textMode = 'digital', model = 'gpt-image') {
+    // Si el modelo es Flux, seguimos usando el texto comprimido para evitar que su memoria colapse (error -78 / -462)
+    if (model === 'flux') {
+        const s = (val, max) => (val ? val.toString().substring(0, max) : "");
+        let parts = [
+            "Ad", s(data.style, 40), s(data.setting, 60), s(data.subject, 60), 
+            s(data.animal, 40), s(data.interaction, 50), s(data.product, 50), 
+            s(data.lighting, 40), s(data.color_palette, 40)
+        ].filter(p => p.trim() !== "");
+
+        let basePrompt = parts.join(", ") + ".";
+        if (textMode === 'ai') {
+            basePrompt += ` Texts: "${s(data.headline, 40)}" "${s(data.subtitle, 40)}" "${s(data.brand, 30)}". Masterpiece, 8k.`;
+        } else {
+            basePrompt += ` NO TEXT, visual only. Masterpiece, 8k.`;
+        }
+        return basePrompt.substring(0, 500);
+    }
+    
+    // Si es DALL-E 3 (gpt-image) u otros, usamos la descripción semántica completa y rica en detalles
     let basePrompt = `Crea un cartel publicitario hiperrealista y profesional. Estilo visual: ${data.style || "elegante"}.
 
-DESCRIPCIÓN DE LA ESCENA (¡MUY IMPORTANTE! Deben aparecer TODOS estos elementos explícitamente):
+DESCRIPCIÓN DE LA ESCENA (Deben aparecer TODOS estos elementos explícitamente):
 - Escenario/Fondo: ${data.setting || "Fondo neutro"}
 - Protagonista principal: ${data.subject || "No especificado"}
 - Elemento secundario / Acompañante: ${data.animal || "No especificado"}
@@ -480,19 +500,15 @@ Titular principal: "${data.headline || ""}"
 Subtítulo: "${data.subtitle || ""}"
 Botón / Llamada a la acción: "${data.call_to_action || ""}"
 Marca: "${data.brand || ""}"
-The typography must be perfectly legible, modern, and large. Without typos.
+La tipografía debe ser perfectamente legible, moderna y grande. Sin errores ortográficos.
 
 INSTRUCCIONES FINALES DE CALIDAD (¡CRÍTICO!):
-El diseño debe parecer un póster o banner profesional listo para publicar.
-Asegúrate de que el "Protagonista principal" y el "Elemento secundario" aparezcan físicamente en la imagen.
-Obligatorio: Anatomía humana perfecta, proporciones correctas, máximo 2 brazos y 2 piernas por persona, sin deformaciones. Calidad masterpiece, 8k, ultra detallado.`;
+El diseño debe parecer un póster o banner profesional listo para publicar. Asegúrate de que los sujetos aparezcan físicamente. Anatomía humana perfecta, sin deformaciones. Calidad masterpiece, 8k, ultra detallado.`;
     } else {
         basePrompt += `Composición: ${data.composition || "Encuadre centrado, dejando mucho espacio limpio (espacio negativo) arriba y abajo para añadir textos después"}
 
 INSTRUCCIONES FINALES DE CALIDAD (¡CRÍTICO!):
-MUY IMPORTANTE: NO incluyas NINGÚN tipo de texto, letras, tipografía, marcas de agua o logos en la imagen. La imagen debe ser puramente el arte visual limpio, con espacio para textos.
-Asegúrate de que el "Protagonista principal" y el "Elemento secundario" aparezcan físicamente en la imagen.
-Obligatorio: Anatomía humana perfecta, proporciones correctas, máximo 2 brazos y 2 piernas por persona, sin deformaciones. Calidad masterpiece, 8k, ultra detallado.`;
+MUY IMPORTANTE: NO incluyas NINGÚN tipo de texto, letras, tipografía, marcas de agua o logos en la imagen. La imagen debe ser puramente el arte visual limpio, con espacio para textos. Anatomía humana perfecta. Calidad masterpiece, 8k, ultra detallado.`;
     }
     
     return basePrompt;
@@ -637,13 +653,18 @@ async function renderTextOnImage(imageBlob, data) {
 async function handleGenerate() {
     const apiKey = inputApiKey.value.trim();
 
+    if (!apiKey) {
+        showToast("Es obligatorio introducir una API Key para generar la imagen.", "error");
+        return;
+    }
+
     if (!currentData.product || !currentData.headline) {
         showToast("Producto y titular publicitario son obligatorios.", "error");
         return;
     }
     
     const textMode = selectTextMode ? selectTextMode.value : 'digital';
-    const finalPrompt = constructPrompt(currentData, textMode);
+    const finalPrompt = constructPrompt(currentData, textMode, currentModel);
     if (!finalPrompt.trim()) {
         showToast("El prompt final está vacío.", "error");
         return;
@@ -671,71 +692,43 @@ async function handleGenerate() {
             seed = Math.floor(Math.random() * 999999999);
         }
 
-        // Creamos la URL pública de caché para guardarla en el historial (no pesa y es permanente)
-        const encodedPrompt = encodeURIComponent(finalPrompt);
-        const cacheUrl = `https://image.pollinations.ai/prompt/${encodedPrompt}?model=${currentModel}&width=${w}&height=${h}&seed=${seed}&nologo=true`;
+        let seedVal = seed;
+        if (typeof seedVal === 'string') {
+            seedVal = parseInt(seedVal, 10);
+            if (isNaN(seedVal)) seedVal = Math.floor(Math.random() * 999999999);
+        }
         
-        // Configuración de la petición POST
-        let postEndpoint = "https://image.pollinations.ai/v1/images/generations"; 
-        const headers = {
-            "Content-Type": "application/json"
-        };
-        
-        if (apiKey) {
-            postEndpoint = "https://gen.pollinations.ai/v1/images/generations";
-            headers["Authorization"] = `Bearer ${apiKey}`;
+        // Actualizar la interfaz visualmente con la semilla que acabamos de generar/usar
+        if (inputSeed && !inputSeed.value) {
+            inputSeed.value = seedVal;
         }
 
-        const requestBody = {
-            prompt: finalPrompt,
-            model: currentModel,
-            n: 1,
-            size: `${w}x${h}`,
-            quality: "medium",
-            response_format: "b64_json",
-            safe: false,
-            seed: seed
-        };
+        // Usamos la ruta GET directa oficial de pago (gen.pollinations.ai)
+        // Añadimos &random=Date.now() para forzar a que el servidor de Pollinations (y Cloudflare) NO usen caché
+        // para modelos como gpt-image que ignoran el parámetro seed.
+        const url = `https://gen.pollinations.ai/image/${encodeURIComponent(finalPrompt)}?key=${apiKey}&model=${currentModel}&width=${w}&height=${h}&seed=${seedVal}&random=${Date.now()}`;
 
-        const response = await fetch(postEndpoint, { 
-            method: "POST",
-            headers: headers,
-            body: JSON.stringify(requestBody)
-        });
+        if (textMode === 'digital') {
+            // Para estampar texto digitalmente necesitamos obligatoriamente descargar la imagen (Blob).
+            // Si el servidor bloquea por CORS, caerá en el catch de abajo.
+            let finalBlobToSave = await new Promise((resolve, reject) => {
+                const img = new Image();
+                img.crossOrigin = 'Anonymous';
+                img.onload = () => {
+                    const canvas = document.createElement('canvas');
+                    canvas.width = img.width;
+                    canvas.height = img.height;
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(img, 0, 0);
+                    canvas.toBlob(blob => {
+                        if (blob) resolve(blob);
+                        else reject(new Error("Error de canvas"));
+                    }, 'image/jpeg', 0.95);
+                };
+                img.onerror = () => reject(new Error("Error CORS: El servidor bloqueó la descarga directa para estampar."));
+                img.src = url;
+            });
 
-        if (!response.ok) {
-            const errorText = await response.text();
-            throw new Error(`Error de Pollinations (${response.status}): ${errorText}`);
-        }
-
-        const contentType = response.headers.get("content-type");
-        let finalBlobToSave = null;
-
-        if (contentType && contentType.includes("application/json")) {
-            const data = await response.json();
-            if (data.data && data.data[0] && data.data[0].b64_json) {
-                const b64 = data.data[0].b64_json;
-                const binaryStr = atob(b64);
-                const len = binaryStr.length;
-                const bytes = new Uint8Array(len);
-                for (let i = 0; i < len; i++) {
-                    bytes[i] = binaryStr.charCodeAt(i);
-                }
-                finalBlobToSave = new Blob([bytes], { type: "image/jpeg" });
-            } else if (data.data && data.data[0] && data.data[0].url) {
-                // Not supported for our text rendering
-                throw new Error("Formato URL devuelto por la API no está soportado en este momento.");
-            } else {
-                throw new Error("Formato JSON devuelto por la API no es válido.");
-            }
-        } else {
-            finalBlobToSave = await response.blob();
-        }
-
-        // ============================================
-        // ESTAMPAR TEXTOS DIGITALMENTE (SI SE ELIGIÓ MODO DIGITAL)
-        // ============================================
-        if (finalBlobToSave && textMode === 'digital') {
             showToast("Dibujando textos en alta calidad...", "success");
             try {
                 finalBlobToSave = await renderTextOnImage(finalBlobToSave, currentData);
@@ -743,18 +736,46 @@ async function handleGenerate() {
                 console.error("Canvas Error:", canvasErr);
                 showToast("Fallo al estampar textos, se mostrará la imagen limpia.", "error");
             }
-        } else if (textMode === 'ai') {
-            showToast("Recibiendo arte y tipografía directamente de la IA...", "success");
+            
+            currentImageUrl = URL.createObjectURL(finalBlobToSave);
+            showImage(currentImageUrl);
+            
+            // Guardamos el Blob real en IndexedDB para historial ilimitado
+            await saveToDB(finalBlobToSave, currentData.brand, currentData.product);
+            showToast("Cartel digital generado con éxito", "success");
+            setLoadingState(false);
+            
+        } else {
+            // MODO AI: Directamente asignar URL al <img> igual que en la web de referencia (evita CORS block)
+            const tempImg = new Image();
+            tempImg.onload = () => {
+                currentImageUrl = url;
+                showImage(url);
+                showToast("Diorama generado correctamente.", "success");
+                setLoadingState(false);
+                
+                // Fetch in background for DB saving if possible, ignoring CORS errors
+                fetch(url).then(r=>r.blob()).then(blob => saveToDB(blob, currentData.brand, currentData.product)).catch(e=>console.log("No se pudo guardar en BD por CORS"));
+            };
+            tempImg.onerror = async () => {
+                let exactError = "La API de Pollinations rechazó la conexión. Comprueba tu API Key.";
+                try {
+                    // Intentamos hacer fetch para leer el mensaje de error exacto del servidor
+                    const res = await fetch(url);
+                    if (!res.ok) {
+                        const errText = await res.text();
+                        exactError = `Error de Pollinations (${res.status}): ${errText}`;
+                    }
+                } catch (e) {
+                    exactError += " (Fallo de red o CORS)";
+                }
+                
+                showToast(exactError, "error");
+                setLoadingState(false);
+            };
+            tempImg.src = url;
+            return; // Esperamos al onload para terminar
         }
-
-        const objectUrl = URL.createObjectURL(finalBlobToSave);
-        currentImageUrl = objectUrl;
-
-        showImage(objectUrl);
-        
-        // Guardamos el Blob real en IndexedDB para historial ilimitado
-        await saveToDB(finalBlobToSave, currentData.brand, currentData.product);
-        showToast("Cartel generado con éxito mediante POST", "success");
 
     } catch (err) {
         console.error(err);
